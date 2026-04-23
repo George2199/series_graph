@@ -1,0 +1,5 @@
+requests
+pandas
+qdrant-client
+sentence-transformers
+tqdm

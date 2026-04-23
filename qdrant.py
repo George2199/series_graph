@@ -3,20 +3,12 @@ from qdrant_client.models import VectorParams, Distance
 from sentence_transformers import SentenceTransformer
 from qdrant_client.models import PointStruct
 
+import hashlib
+
 client = QdrantClient(host="localhost", port=6333)
 
-client.recreate_collection(
-    collection_name="series",
-    vectors_config=VectorParams(
-        size=384,  # для all-MiniLM-L6-v2
-        distance=Distance.COSINE
-    )
-)
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
 def insert_series(item):
-    vector = model.encode(item["text"]).tolist()
+    vector = get_model().encode(item["text"]).tolist()
 
     point = PointStruct(
         id=item["id"],
@@ -40,11 +32,11 @@ def insert_batch(items):
         if not item["text"]:
             continue
 
-        vector = model.encode(item["text"]).tolist()
+        vector = get_model().encode(item["text"]).tolist()
 
         points.append(
             PointStruct(
-                id=item["wiki_url"],
+                id=make_id(item["wiki_url"]),
                 vector=vector,
                 payload={
                     "title": item["title"],
@@ -54,16 +46,53 @@ def insert_batch(items):
             )
         )
 
+    print(f"items={len(items)} → points={len(points)}")
+
+    if not points:
+        print("skip empty batch")
+        return
+
     client.upsert(
         collection_name="series",
         points=points
     )
 
 def search(query):
-    vector = model.encode(query).tolist()
+    vector = get_model().encode(query).tolist()
 
     return client.query_points(
         collection_name="series",
         query=vector,
         limit=10
     )
+
+def make_id(url):
+    return hashlib.md5(url.encode()).hexdigest()
+
+def init_qdrant(reset: bool = False):
+    if reset:
+        client.recreate_collection(
+            collection_name="series",
+            vectors_config=VectorParams(
+                size=384,
+                distance=Distance.COSINE
+            )
+        )
+    else:
+        # создаст, если нет
+        if "series" not in [c.name for c in client.get_collections().collections]:
+            client.create_collection(
+                collection_name="series",
+                vectors_config=VectorParams(
+                    size=384,
+                    distance=Distance.COSINE
+                )
+            )
+
+
+def get_model():
+    if not hasattr(get_model, "model"):
+        get_model.model = SentenceTransformer("all-MiniLM-L6-v2")
+    return get_model.model
+
+init_qdrant()
