@@ -1,5 +1,8 @@
 requests
 pandas
-qdrant-client
-sentence-transformers
 tqdm
+SPARQLWrapper==2.0.0
+pyarrow==16.1.0          # для Parquet
+tenacity==8.3.0
+wikipedia-api==0.6.0     # опционально, если использовать вместо REST AP
+aiohttp

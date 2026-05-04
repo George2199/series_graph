@@ -3,3 +3,6 @@
 
 __pycache__/
 qdrant_data;C/
+
+archive/
+data/
